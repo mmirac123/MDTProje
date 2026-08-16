@@ -27,10 +27,18 @@ set_property top top_tb [get_filesets sim_1]
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
 
+# Simulasyon bastan sona koşsun. Vivado'nun varsayilani 1000 ns; testbench'ler
+# 1 ms oyun zamanini 100 ns'ye sikistirsa bile 1000 ns ilk kontrole bile
+# yetmiyor ve "hicbir sey olmadi" gibi gorunuyor. Testbench'lerde $finish var,
+# "all" verince kendi kendilerine duruyorlar.
+set_property -name {xsim.simulate.runtime} -value {all} -objects [get_filesets sim_1]
+
 puts ""
 puts "==============================================="
 puts " Proje olusturuldu: $kok/$proje_adi"
 puts " Sentez top   : top"
 puts " Simulasyon   : top_tb  (baska bir tb calistirmak icin"
 puts "                sag tik -> Set as Top)"
+puts " Sim suresi   : all  (Run Behavioral Simulation yeter,"
+puts "                'run all' yazmaya gerek yok)"
 puts "==============================================="

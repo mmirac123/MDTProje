@@ -12,15 +12,21 @@ module lfsr16 #(
     output reg  [15:0] deger
 );
 
-    // YAZILACAK:
-    //   geri_besleme = deger[15] ^ deger[13] ^ deger[12] ^ deger[10]
-    //   (16 bit icin maksimum uzunluk taplari)
-    //   rst   -> deger <= SEED
-    //   yoksa -> deger <= {deger[14:0], geri_besleme}
-    //
-    // SORU: tum bitler 0 olursa ne olur, neden SEED sifir olamaz?
-    always @(posedge clk) begin
+    //-----------------------------------------------------------------------
+    //  Geri besleme: 16 bit icin maksimum uzunluk taplari (periyot 65535).
+    //  x^16 + x^14 + x^13 + x^11 + 1
+    //-----------------------------------------------------------------------
+    wire geri_besleme = deger[15] ^ deger[13] ^ deger[12] ^ deger[10];
 
+    //  SORU: tum bitler 0 olursa ne olur, neden SEED sifir olamaz?
+    //  CEVAP: deger = 0 iken geri_besleme = 0^0^0^0 = 0 cikar, bir sonraki
+    //         deger yine 0 olur. LFSR sifirda sonsuza kadar kilitlenir.
+    //         Bu yuzden SEED sifirdan farkli olmak ZORUNDA.
+    always @(posedge clk) begin
+        if (rst)
+            deger <= SEED;
+        else
+            deger <= {deger[14:0], geri_besleme};
     end
 
 endmodule

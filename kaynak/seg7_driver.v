@@ -5,6 +5,7 @@
 //  disp_sel timebase'den gelir.
 //
 //  DIKKAT: Bu taramayi oyunun 400 ms'lik animasyonuyla karistirma.
+//          Tarama HER ZAMAN calisir (saniyede ~1500 kez, goz secemez).
 //          Animasyon sadece basamak_en maskesini degistirir.
 
 module seg7_driver(
@@ -17,19 +18,35 @@ module seg7_driver(
 
     reg [3:0] rakam;
 
-    // YAZILACAK:
-    //   1) disp_sel'e gore d0..d3'ten birini rakam'a al
-    //   2) an = 4'b1111 (hepsi kapali);
-    //      basamak_en[disp_sel] 1 ise sadece an[disp_sel] = 0
-    //   3) rakam'i segment desenine cevir (case):
-    //      0:7'b1000000  1:7'b1111001  2:7'b0100100  3:7'b0110000
-    //      4:7'b0011001  5:7'b0010010  6:7'b0000010  7:7'b1111000
-    //      8:7'b0000000  9:7'b0011000  default:7'b1111111 (kapali)
     always @(*) begin
-        rakam = 4'd0;
-        an    = 4'b1111;
-        seg   = 7'b1111111;
+        // 1) disp_sel'e gore gosterilecek rakami sec
+        case (disp_sel)
+            2'd0:    rakam = d0;
+            2'd1:    rakam = d1;
+            2'd2:    rakam = d2;
+            default: rakam = d3;
+        endcase
 
+        // 2) Anot secimi. Aktif-dusuk: 0 = o basamak yanik.
+        //    Once hepsini kapat, sonra sadece siradaki basamagi ac.
+        an = 4'b1111;
+        if (basamak_en[disp_sel])
+            an[disp_sel] = 1'b0;
+
+        // 3) Rakami segment desenine cevir (aktif-dusuk, gfedcba)
+        case (rakam)
+            4'd0:    seg = 7'b1000000;
+            4'd1:    seg = 7'b1111001;
+            4'd2:    seg = 7'b0100100;
+            4'd3:    seg = 7'b0110000;
+            4'd4:    seg = 7'b0011001;
+            4'd5:    seg = 7'b0010010;
+            4'd6:    seg = 7'b0000010;
+            4'd7:    seg = 7'b1111000;
+            4'd8:    seg = 7'b0000000;
+            4'd9:    seg = 7'b0011000;
+            default: seg = 7'b1111111;   // kapali
+        endcase
     end
 
 endmodule

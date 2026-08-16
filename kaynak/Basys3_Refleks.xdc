@@ -105,3 +105,64 @@ set_property PACKAGE_PIN A18 [get_ports RsTx]
 ## ---- Konfigurasyon (DRC uyarilarini onler) ---------------------------------
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
+
+## =============================================================================
+##  ZAMANLAMA ISTISNASI  -  UART bayt uretimi (multicycle path)
+## =============================================================================
+##  SORUN
+##    uart_reporter'in urettigi bayt su yoldan geciyor:
+##      score_accum/reaction_capture yazmaclari
+##        -> bin2bcd (13 kademeli double-dabble zinciri)
+##        -> 30 sutunluk metin secici
+##        -> tx_veri yazmaci
+##    Bu yol ~16 ns suruyor, 100 MHz'in 10 ns'lik butcesine sigmiyor.
+##    Kisit koymazsak Vivado WNS = -5.9 ns ile "Failed Timing" veriyor.
+##
+##  NEDEN GERCEKTE SORUN DEGIL
+##    tx_veri saatte bir yuklenmiyor. Bir bayt 9600 baud'da 10 bit x 10417
+##    cevrim = ~104 000 cevrim suruyor ve reporter bir sonraki bayti ancak
+##    uart_tx bosaldiktan sonra hazirliyor. Ustelik uart_reporter icinde,
+##    adim degistikten sonra bayt'in oturmasi icin 16 cevrimlik bir bekleme
+##    (OTURMA sayaci) var. Yani bu yola gercekte on binlerce cevrim dusuyor.
+##
+##  KISIT
+##    Asagidaki satirlar Vivado'ya "bu yazmaca giden yollar icin 8 cevrimlik
+##    butcen var" diyor. 8 x 10 ns = 80 ns >> 16 ns, rahatca gecer.
+##    -hold degeri her zaman (setup - 1) verilir; aksi halde tutma (hold)
+##    analizi yanlis referans kenarina gore yapilir.
+##
+##  HANGI YAZMACLAR KAPSAMDA
+##    tx_veri   : gonderilecek bayt        (bayt basina bir kez yuklenir)
+##    adim      : metindeki bayt sayaci    (bayt basina bir kez artar)
+##    calisiyor : rapor devam ediyor mu    (rapor basinda/sonunda degisir)
+##    bitti     : rapor bitti bayragi      (rapor sonunda degisir)
+##  Bu dordunun de giris konisi ayni: bin2bcd zinciri ve toplam_bayt
+##  karsilastirmasi. Dordu de en az 19 cevrimde bir yazilir (16 cevrimlik
+##  OTURMA + el sikisma fazlari), dolayisiyla 8 cevrimlik butce guvenli.
+##
+##  KAPSAM DISI (bilerek): fz, otur, tx_gonder - bunlar her cevrim degisebilir
+##  ama giris konileri kisa, zaten tek cevrime rahat siginiyorlar.
+set_multicycle_path -setup 8 -to [get_cells -quiet {u_rapor/tx_veri_reg[*] u_rapor/adim_reg[*] u_rapor/calisiyor_reg u_rapor/bitti_reg}]
+set_multicycle_path -hold  7 -to [get_cells -quiet {u_rapor/tx_veri_reg[*] u_rapor/adim_reg[*] u_rapor/calisiyor_reg u_rapor/bitti_reg}]
+
+## =============================================================================
+##  QSPI FLASH'TAN OTOMATIK ONYUKLEME
+## =============================================================================
+##  Artix-7 SRAM tabanlidir; bitstream guc kesilince silinir. Karti prize
+##  taktiginda tasarimin kendiliginden gelmesi icin bitstream'i kart uzerindeki
+##  QSPI flash'a (Spansion S25FL032P, 32 Mbit) yazmak gerekir.
+##
+##  Asagidaki dort satir bitstream'in BASLIGINA yaziliyor; bu yuzden bu
+##  ayarlari ekledikten SONRA bitstream'i yeniden uretmek zorunlu, eski
+##  top.bit'ten uretilen .mcs dogru calismaz.
+##
+##  SPIx4 : flash'i 4 veri hattindan birden okur (x1'e gore ~4 kat hizli acilis)
+##  CONFIGRATE 33 : konfigurasyon saati 33 MHz (S25FL032P'nin destekledigi hiz)
+##  COMPRESS : bitstream'i sikistirir, hem flash'ta yer hem acilis suresi kazandirir
+##
+##  KART UZERINDE: JP1 (MODE) jumper'i QSPI konumunda olmali. Fabrika ayari
+##  JTAG'dir ve JTAG'de kaldigi surece kart acilista flash'i hic okumaz.
+set_property CONFIG_MODE SPIx4                  [current_design]
+set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4    [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 33     [current_design]
+set_property BITSTREAM.GENERAL.COMPRESS TRUE    [current_design]

@@ -23,14 +23,81 @@ module uart_tx #(
     reg [2:0]  bit_no;
     reg [7:0]  kaydirma;
 
-    // YAZILACAK: 4 durumlu FSM
-    //   BOS  : tx=1, mesgul=0 ; gonder gelirse veri'yi kaydirma'ya al,
-    //          tx=0 (start biti), mesgul=1, START'a gec
-    //   START: CLKS_PER_BIT cevrim say, sonra ilk veri bitini tx'e koy
-    //   VERI : her CLKS_PER_BIT'te bir sonraki biti tx'e koy (toplam 8)
-    //   STOP : tx=1, bir bit suresi bekle, BOS'a don
     always @(posedge clk) begin
+        if (rst) begin
+            durum    <= BOS;
+            tx       <= 1'b1;
+            mesgul   <= 1'b0;
+            sayac    <= 14'd0;
+            bit_no   <= 3'd0;
+            kaydirma <= 8'd0;
+        end else begin
+            case (durum)
 
+            //---------------------------------------------------------------
+            //  BOS : hat bosta (1). gonder gelirse start bitini bas.
+            //---------------------------------------------------------------
+            BOS: begin
+                tx     <= 1'b1;
+                mesgul <= 1'b0;
+                sayac  <= 14'd0;
+                bit_no <= 3'd0;
+                if (gonder) begin
+                    kaydirma <= veri;
+                    tx       <= 1'b0;      // start biti
+                    mesgul   <= 1'b1;
+                    durum    <= START;
+                end
+            end
+
+            //---------------------------------------------------------------
+            //  START : bir bit suresi bekle, sonra ilk veri bitini (LSB) koy
+            //---------------------------------------------------------------
+            START: begin
+                if (sayac == CLKS_PER_BIT - 1) begin
+                    sayac  <= 14'd0;
+                    tx     <= kaydirma[0];
+                    bit_no <= 3'd0;
+                    durum  <= VERI;
+                end else begin
+                    sayac <= sayac + 14'd1;
+                end
+            end
+
+            //---------------------------------------------------------------
+            //  VERI : 8 bit, LSB once
+            //---------------------------------------------------------------
+            VERI: begin
+                if (sayac == CLKS_PER_BIT - 1) begin
+                    sayac <= 14'd0;
+                    if (bit_no == 3'd7) begin
+                        tx    <= 1'b1;     // stop biti
+                        durum <= STOP;
+                    end else begin
+                        tx     <= kaydirma[bit_no + 3'd1];
+                        bit_no <= bit_no + 3'd1;
+                    end
+                end else begin
+                    sayac <= sayac + 14'd1;
+                end
+            end
+
+            //---------------------------------------------------------------
+            //  STOP : bir bit suresi 1 tut, sonra bosa don
+            //---------------------------------------------------------------
+            STOP: begin
+                tx <= 1'b1;
+                if (sayac == CLKS_PER_BIT - 1) begin
+                    sayac  <= 14'd0;
+                    mesgul <= 1'b0;
+                    durum  <= BOS;
+                end else begin
+                    sayac <= sayac + 14'd1;
+                end
+            end
+
+            endcase
+        end
     end
 
 endmodule

@@ -28,3 +28,15 @@ desktop.ini
 *.bit
 *.bin
 *.ltx
+
+# ---- Gecici / yerel calisma dosyalari ----
+# Yedek klasorler, paket arsivleri ve silinmeyi bekleyen dosyalar.
+# Bunlar sadece bir bilgisayarda anlamli, repoya girmemeli.
+_to_delete/
+_yedek_*/
+*.tgz
+*.tar.gz
+*.zip
+
+# Inceleme / not dosyalari (yerel kalsin, teslim dosyasi degil)
+Proje_Incelemesi_*.pdf
