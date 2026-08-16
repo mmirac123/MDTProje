@@ -1,0 +1,41 @@
+================================================================================
+  NAZIK ORMANLAR - PAYLASIM KLASORU
+================================================================================
+
+DRIVE'A SADECE BU KLASOR YUKLENIR. Vivado projesinin kendisi (.xpr, .cache,
+.hw, .sim, .runs, .ip_user_files) ASLA paylasilmaz - onlar her bilgisayarda
+yeniden uretilen gecici dosyalar. Paylasirsaniz surekli cakisirlar.
+
+ICERIK
+  kaynak/           Verilog tasarim dosyalari + Basys3_Refleks.xdc
+  testbench/        Testbench dosyalari
+  proje_olustur.tcl Vivado projesini sifirdan kuran betik
+  OKUBENI_ARAYUZ.txt   Arayuz sozlesmesi - kod yazmadan once okuyun
+  Nazik_Ormanlar_Grup_Kilavuzu.pdf
+
+ILK KURULUM (herkes bir kez yapar)
+  1. Bu klasoru indir, KISA ve TURKCE KARAKTERSIZ bir yola koy: C:\fpga\nazik
+  2. Vivado -> Tools -> Run Tcl Script... -> proje_olustur.tcl
+  3. Proje yaninda olusur, calismaya basla.
+
+GUNLUK CALISMA
+  - Sadece kaynak/ ve testbench/ icindeki .v dosyalarini duzenle.
+  - Isin bitince o dosyalari Drive'a geri yukle.
+  - Olusan proje klasorunu yukleme.
+
+CAKISMAYI ONLEYEN TEK KURAL
+  HER DOSYANIN TEK SAHIBI VAR. Baskasinin dosyasini duzenleme.
+  Bir portu degistirmen gerekiyorsa once gruba yaz.
+
+    A : top.v  seg7_driver.v  led_ctrl.v  Basys3_Refleks.xdc
+    B : game_fsm.v
+    C : lfsr16.v  delay_gen.v  reaction_capture.v  scoring.v  score_accum.v
+    D : uart_tx.v  bin2bcd.v  uart_reporter.v
+
+  Ayni dosyayi iki kisi ayni anda duzenlerse Drive birini sessizce eziyor
+  ya da "conflicted copy" olusturuyor. Fark etmesi saatler aliyor.
+
+VIVADO SURUMU
+  Herkes AYNI Vivado surumunu kullansin. Farkli surumde acilinca migrate
+  istiyor; genelde calisiyor ama .xpr'i paylasmadiginiz icin bu betik
+  yontemi sorunu tamamen ortadan kaldiriyor.

@@ -1,0 +1,30 @@
+# ---- Vivado proje ciktilari: ASLA commit edilmez ----
+# Bunlar her bilgisayarda proje_olustur.tcl ile yeniden uretilir.
+*.xpr
+*.xpr.yedek
+*.jou
+*.log
+*.str
+*.cache/
+*.hw/
+*.sim/
+*.runs/
+*.ip_user_files/
+*.gen/
+*.srcs/
+.Xil/
+vivado*.backup.jou
+vivado*.backup.log
+usage_statistics_webtalk*
+webtalk*
+hs_err_pid*
+
+# ---- Isletim sistemi ----
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- Bitstream: teslimde eklenecek, gelistirme sirasinda degil ----
+*.bit
+*.bin
+*.ltx

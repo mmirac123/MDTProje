@@ -1,0 +1,110 @@
+================================================================================
+  NAZIK ORMANLAR - BASYS3 REFLEKS OYUNU
+  Modul iskeletleri + arayuz sozlesmesi
+================================================================================
+
+DOSYALARI NEREYE KOYACAKSINIZ
+  sources_1_new/*.v  ->  Nazik_Ormanlar_Proje.srcs\sources_1\new\
+  sim_1_new/*.v      ->  Nazik_Ormanlar_Proje.srcs\sim_1\new\
+
+  Sonra Vivado'da:
+    Add Sources -> Add or create design sources     (sources_1_new icindekiler)
+    Add Sources -> Add or create simulation sources (sim_1_new icindekiler)
+  "Copy sources into project" ISARETSIZ kalsin.
+
+--------------------------------------------------------------------------------
+  1. ISIM KONVANSIYONU  -  KOD YAZMADAN ONCE HERKES OKUSUN
+--------------------------------------------------------------------------------
+  Sinyal isimleri Turkce, modul isimleri ve teknik terimler Ingilizce.
+  Zaten yazilmis timebase/debouncer ile uyumlu:
+
+    vurus_1ms      1 ms izin pulsu (timebase -> herkes)
+    disp_sel       7-segment tarama secicisi
+    btn_ham        ham buton girisi
+    btn_seviye     debounce edilmis seviye
+    btn_puls       yukselen kenar pulsu
+
+  BIR ISMI DEGISTIRIRSENIZ GRUBA HABER VERIN. Dort kisi paralel yaziyor;
+  bir port isminin sessizce degismesi entegrasyon gununu yakar.
+
+--------------------------------------------------------------------------------
+  2. ARAYUZ SOZLESMESI  -  kim neyi uretiyor, kim tuketiyor
+--------------------------------------------------------------------------------
+  URETEN              SINYAL                     GENISLIK  TUKETEN
+  ------------------  -------------------------  --------  ----------------------
+  timebase            vurus_1ms                  1         herkes
+  timebase            disp_sel                   2         seg7_driver
+  debouncer (x5)      btn_puls                   1         game_fsm, reaction_c.
+  lfsr16              deger                      16        delay_gen, game_fsm
+  delay_gen           bekleme_ms                 13        game_fsm
+
+  game_fsm            silahli                    1         reaction_capture
+  game_fsm            pencere                    1         reaction_capture
+  game_fsm            t0                         1 (puls)  reaction_capture
+  game_fsm            basamak_en                 4         seg7_driver
+  game_fsm            d0..d3                     4 er      seg7_driver
+  game_fsm            oyuncu_maske               4         score_accum, reaction
+  game_fsm            eleme_modu / zor_mod       1 er      score_accum/delay_gen
+  game_fsm            tur_no                     5         uart_reporter
+  game_fsm            tur_sonu                   1 (puls)  score_accum
+  game_fsm            oyun_bitti                 1         led_ctrl
+  game_fsm            uart_basla                 1 (puls)  uart_reporter
+
+  reaction_capture    sure0..sure3               13 er     scoring, uart_reporter
+  reaction_capture    gecerli                    4         scoring
+  reaction_capture    yanlis_baslangic           4         score_accum, uart_rep
+  reaction_capture    zaman_asimi                4         score_accum, uart_rep
+  reaction_capture    tur_hazir                  1         game_fsm
+
+  scoring             puan0..puan3               3 er      score_accum, led_ctrl
+  score_accum         toplam0..toplam3           7 er      uart_reporter
+  score_accum         yasayan                    4         game_fsm
+  score_accum         kazanan / beraberlik       2 / 1     led_ctrl, uart_rep
+
+  bin2bcd             bcd                        16        uart_reporter
+  uart_reporter       tx_gonder / tx_veri        1 / 8     uart_tx
+  uart_tx             mesgul                     1         uart_reporter
+  uart_tx             tx                         1         RsTx pini (A18)
+
+  NOT: aktif = oyuncu_maske & yasayan   (top icinde hesaplanir)
+
+--------------------------------------------------------------------------------
+  3. SABITLER  -  hepsi tek yerden gelsin, dagitmayin
+--------------------------------------------------------------------------------
+  MS_DIV        = 100_000   (sentez)  /  10 (simulasyon)
+  CLKS_PER_BIT  = 10417     (9600 baud @ 100 MHz)
+  STABLE_MS     = 10        (debounce esigi)
+  Blackout penceresi = 5000 ms
+  SEQ adim suresi    = 400 ms
+  Kolay mod = 2000..5000 ms   |   Zor mod = 500..5000 ms
+  Puan: 1.=4  2.=3  3.=2  4.=1  |  false start / timeout = 0
+  LED sayisi = puan sayisi (ayri hesap yapmayin)
+
+--------------------------------------------------------------------------------
+  4. IS BOLUMU ONERISI
+--------------------------------------------------------------------------------
+  A (entegrator) : top, XDC, seg7_driver, led_ctrl, kart ustu debug
+  B              : game_fsm  (TEK BASINA - kimse karismasin)
+  C              : lfsr16, delay_gen, reaction_capture, scoring, score_accum
+  D              : uart_tx, bin2bcd, uart_reporter
+
+  Katman 0 (timebase, debouncer) BITTI - hepsi bunlarin ustune oturuyor.
+
+--------------------------------------------------------------------------------
+  5. YAZMA SIRASI
+--------------------------------------------------------------------------------
+  1) lfsr16 + delay_gen        (kolay, bagimsiz)
+  2) seg7_driver               (ekranda "1234" gorun - ilk gorsel kilometre tasi)
+  3) game_fsm iskeleti         (BTNC ile animasyon + blackout calissin)
+  4) reaction_capture + scoring + led_ctrl   <-- burada oyun OYNANABILIR olur
+  5) score_accum, false start, timeout, eleme modu, erken bitis
+  6) uart_tx (once tek 'A' karakteri!) -> bin2bcd -> uart_reporter
+  7) top_tb ile tam sistem simulasyonu, sonra bitstream
+
+--------------------------------------------------------------------------------
+  6. TESTBENCH POLITIKASI
+--------------------------------------------------------------------------------
+  $display ile kendi kendini kontrol eden testbench SADECE su ucunde:
+      reaction_capture, scoring, (ve uart_reporter yazilinca onda)
+  Digerlerinde dalga formuna bakmak yeterli - modulun karmasikligi kadar
+  testbench yazin, fazlasi zaman kaybi.
