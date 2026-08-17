@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
-//  uart_reporter - tur raporunu metin olarak uretip uart_tx'e sirayla verir.
-//  Yazan:
+//  uart_reporter - tur sonucunu duz metin haline cevirip uart_tx'e bayt bayt yolluyor.
+//  yazan:
 //
-//  ORNEK CIKTI
+//  cikti soyle gorunuyor mesela:
 //     TUR 03
 //      P1 0342 ms    PUAN 4
 //      P2 0410 ms    PUAN 3
@@ -12,26 +12,26 @@
 //
 //     ==== OYUN BITTI ====
 //     KAZANAN P1 (18 PUAN)          <- beraberlikte: BERABERLIK (18 PUAN)
-//     BERABER: P1    P3             <- sadece beraberlik varsa basilir
+//     BERABER: P1    P3             <- beraberlik yoksa bu satir hic yazilmiyor
 //
-//  TASARIM FIKRI - "32 baytlik satir"
+//  fikir: "32 baytlik satir"
 //  --------------------------------------------------------------------
-//  Her satir TAM 32 bayt (30 karakter + CR + LF). Boylece bayt sayaci
-//  adim'in ust bitleri kacinci SATIRDA, alt bitleri satirin kacinci
-//  SUTUNUNDA oldugumuzu dogrudan verir - bolme/moduler aritmetik yok:
+//  once bolme ile ugrasip durdum (adim/32, adim%32) ama gereksizmis.
+//  her satiri tam 32 bayt yaptim (30 karakter + cr + lf), 32 = 2^5
+//  oldugu icin sayacin bitlerini ikiye bolmek yetiyor, bolme/mod yok:
 //
-//      blok  = adim[8:5]      satir numarasi
-//      sutun = adim[4:0]      satirdaki karakter (0..29, 30=CR, 31=LF)
+//      blok  = adim[8:5]      kacinci satirdayiz
+//      sutun = adim[4:0]      satirin kacinci karakteri (0..29, 30=cr, 31=lf)
 //
-//  Satirlarin sabit iskeleti string sabiti olarak duruyor, sadece
-//  degisken karakterler (rakamlar, durum alani) uzerine yaziliyor.
+//  satirlarin degismeyen kismi asagida string sabiti olarak duruyor,
+//  biz sadece degisen yerleri (rakamlar, durum yazisi) ustune yaziyoruz.
 //
-//  TURKCE KARAKTER KULLANMA - terminalde bozuk gorunur.
+//  not: turkce karakter (ı, ş, ğ...) kullanma, terminalde cop cikiyor.
 
 module uart_reporter(
     input  wire        clk, rst,
-    input  wire        basla,            // game_fsm'den TEK cevrimlik puls
-    input  wire        son_rapor,        // 1 ise kazanan/beraberlik mesaji
+    input  wire        basla,            // game_fsm tek cevrimlik puls atiyor
+    input  wire        son_rapor,        // 1 ise kazanan/beraberlik mesaji basiliyor
 
     input  wire [4:0]  tur_no,
     input  wire [12:0] sure0, sure1, sure2, sure3,
@@ -48,34 +48,35 @@ module uart_reporter(
 );
 
     //=======================================================================
-    //  1) Adres cozumu
+    //  1) adres cozumu
     //=======================================================================
-    reg [8:0] adim;      // metindeki kacinci bayttayiz (0..319)
+    reg [8:0] adim;      // metinde kacinci bayttayiz (0..319 arasi)
     reg       calisiyor;
-    reg [1:0] fz;        // uart_tx ile el sikisma fazi
+    reg [1:0] fz;        // uart_tx ile el sikisma fazi (asagida 6. bolumde anlatiyorum)
 
     wire [3:0] blok  = adim[8:5];
     wire [4:0] sutun = adim[4:0];
-    wire [4:0] s     = (sutun > 5'd29) ? 5'd29 : sutun;   // string indeksi
-    wire [3:0] df    = sutun - 5'd4;                      // durum alani indeksi
+    wire [4:0] s     = (sutun > 5'd29) ? 5'd29 : sutun;   // string indeksine cevir
+    wire [3:0] df    = sutun - 5'd4;                      // durum alani icin yerel indeks
 
-    //  Blok haritasi
+    //  hangi blok hangi satir - kafam karismasin diye not aliyorum:
     //    0        TUR NN
     //    1..4     oyuncu satirlari
     //    5        TOPLAM satiri
-    //    6        bos satir
-    //    7        ==== OYUN BITTI ====     (sadece son_rapor)
-    //    8        KAZANAN / BERABERLIK     (sadece son_rapor)
-    //    9        BERABER: listesi         (sadece son_rapor && beraberlik)
-    localparam [8:0] SON_TUR_RAPORU = 9'd224;   // 7 satir  x 32
-    localparam [8:0] SON_OYUN       = 9'd288;   // 9 satir  x 32
-    localparam [8:0] SON_BERABER    = 9'd320;   // 10 satir x 32
+    //    6        bos satir (araya nefes payi)
+    //    7        ==== OYUN BITTI ====     (sadece son_rapor'da)
+    //    8        KAZANAN / BERABERLIK     (sadece son_rapor'da)
+    //    9        BERABER: listesi         (sadece son_rapor ve beraberlik varsa)
+    localparam [8:0] SON_TUR_RAPORU = 9'd224;   // 7 satir  x 32 bayt
+    localparam [8:0] SON_OYUN       = 9'd288;   // 9 satir  x 32 bayt
+    localparam [8:0] SON_BERABER    = 9'd320;   // 10 satir x 32 bayt
 
     wire [8:0] toplam_bayt = son_rapor ? (beraberlik ? SON_BERABER : SON_OYUN)
                                        : SON_TUR_RAPORU;
 
     //=======================================================================
-    //  2) Sabit satir iskeletleri - HEPSI TAM 30 KARAKTER
+    //  2) sabit satir kaliplari - dikkat, hepsi tam 30 karakter olmak zorunda
+    //     (bir eksik/fazla bosluk birakirsan tum sutun indeksleri kayar)
     //=======================================================================
     wire [239:0] L_TUR = "TUR 00                        ";
     wire [239:0] L_OYU = " P0             PUAN 0        ";
@@ -86,14 +87,16 @@ module uart_reporter(
     wire [239:0] L_BER = "BERABERLIK (00 PUAN)          ";
     wire [239:0] L_ESI = "BERABER: P1 P2 P3 P4          ";
 
-    //  Oyuncu satirinin durum alani - HEPSI TAM 11 KARAKTER
+    //  oyuncu satirindaki durum yazisi - bunlar da tam 11 karakter olmali
     wire [87:0] S_YOK   = "OYNAMIYOR  ";
     wire [87:0] S_FALSE = "FALSESTART ";
     wire [87:0] S_TIME  = "TIMEOUT    ";
     wire [87:0] S_ELEN  = "ELENDI     ";
 
     //=======================================================================
-    //  3) O anki oyuncunun bilgileri (blok 1..4 -> oyuncu 0..3)
+    //  3) o an hangi oyuncudaysak onun bilgilerini tek yere topla
+    //     (blok 1..4 -> oyuncu 0..3, boylece asagida 4 kere ayni kodu
+    //     yazmak zorunda kalmiyorum)
     //=======================================================================
     reg [12:0] o_sure;
     reg [2:0]  o_puan;
@@ -112,7 +115,7 @@ module uart_reporter(
         endcase
     end
 
-    //  Kazananin toplami (KAZANAN/BERABERLIK satirinda basilir)
+    //  kazananin toplam puani (kazanan/beraberlik satirinda lazim oluyor)
     reg [6:0] kaz_toplam;
     always @(*) begin
         case (kazanan)
@@ -123,15 +126,17 @@ module uart_reporter(
         endcase
     end
 
-    //  Tepe puani paylasanlar (BERABER: satiri icin)
+    //  kim kimle berabere kalmis - beraber: satirinda kimin adini basacagimizi
+    //  buradan anliyoruz. toplami en yuksek puana esit olan herkes beraberdir.
     wire [3:0] esit = { oyuncu_maske[3] && (toplam3 == kaz_toplam),
                         oyuncu_maske[2] && (toplam2 == kaz_toplam),
                         oyuncu_maske[1] && (toplam1 == kaz_toplam),
                         oyuncu_maske[0] && (toplam0 == kaz_toplam) };
 
     //=======================================================================
-    //  4) Tek bin2bcd - girisi hangi satirda oldugumuza gore secilir.
-    //     Kombinasyonel oldugu icin tek ornek butun sayilara yetiyor.
+    //  4) bin2bcd'yi tek yerde kullaniyorum, hersey icin ayri ayri koymadim.
+    //     kombinasyonel oldugu icin (saat beklemiyor) hangi sayiyi
+    //     cevirecegini her cevrimde degistirebiliyorum, sikinti cikmiyor.
     //=======================================================================
     reg  [12:0] bcd_giris;
     wire [15:0] bcd_cikis;
@@ -152,12 +157,12 @@ module uart_reporter(
     end
 
     //=======================================================================
-    //  5) adim -> bayt cevrimi (tamamen kombinasyonel)
+    //  5) adim -> bayt: asil isin yapildigi yer, tamamen kombinasyonel
     //=======================================================================
     reg [7:0] bayt;
 
     always @(*) begin
-        bayt = 8'h20;                                   // varsayilan: bosluk
+        bayt = 8'h20;                                   // varsayilan bosluk birakiyorum
 
         case (blok)
 
@@ -169,22 +174,22 @@ module uart_reporter(
         end
 
         //  ---- oyuncu satirlari ----
-        //  " Pn " + 11 karakterlik durum alani + " PUAN p"
+        //  " Pn " + 11 karakterlik durum + " PUAN p" seklinde ilerliyor
         4'd1, 4'd2, 4'd3, 4'd4: begin
             bayt = L_OYU[8*(29-s) +: 8];
 
-            if (sutun == 5'd2) bayt = 8'h30 + {4'd0, blok};      // P1..P4
+            if (sutun == 5'd2) bayt = 8'h30 + {4'd0, blok};      // P1..P4 basiyor
 
             if ((sutun >= 5'd4) && (sutun <= 5'd14)) begin
-                if (!o_var)                                      // oyunda degil
+                if (!o_var)                                      // hic oyunda degilse
                     bayt = S_YOK[8*(10-df) +: 8];
-                else if (o_yanlis)                               // erken basti
+                else if (o_yanlis)                                // erkenden basmis
                     bayt = S_FALSE[8*(10-df) +: 8];
-                else if (o_zaman)                                // hic basmadi
+                else if (o_zaman)                                 // hic basmadan suresi dolmus
                     bayt = S_TIME[8*(10-df) +: 8];
-                else if (o_puan == 3'd0)                         // eleme ile dustu
+                else if (o_puan == 3'd0)                          // elenmis, puani sifirlanmis
                     bayt = S_ELEN[8*(10-df) +: 8];
-                else begin                                       // NNNN ms
+                else begin                                        // her sey normal, NNNN ms yaz
                     case (df)
                         4'd0:    bayt = 8'h30 + bcd_cikis[15:12];
                         4'd1:    bayt = 8'h30 + bcd_cikis[11:8];
@@ -211,22 +216,22 @@ module uart_reporter(
                 bayt = 8'h30 + bcd_cikis[3:0];
         end
 
-        //  ---- bos satir ----
+        //  ---- bos satir, sadece araya bosluk koyuyor ----
         4'd6: bayt = L_BOS[8*(29-s) +: 8];
 
         //  ---- ==== OYUN BITTI ==== ----
         4'd7: bayt = L_BIT[8*(29-s) +: 8];
 
-        //  ---- KAZANAN Pn (NN PUAN) / BERABERLIK (NN PUAN) ----
+        //  ---- KAZANAN Pn (NN PUAN) ya da beraberlikse BERABERLIK (NN PUAN) ----
         4'd8: begin
             bayt = beraberlik ? L_BER[8*(29-s) +: 8] : L_KAZ[8*(29-s) +: 8];
             if (!beraberlik && (sutun == 5'd9))
-                bayt = 8'h31 + {6'd0, kazanan};       // '1'..'4'
+                bayt = 8'h31 + {6'd0, kazanan};       // '1'..'4' rakamini basiyor
             if (sutun == 5'd12) bayt = 8'h30 + bcd_cikis[7:4];
             if (sutun == 5'd13) bayt = 8'h30 + bcd_cikis[3:0];
         end
 
-        //  ---- BERABER: P1 P3 ... (berabere kalmayanlarin yeri bos) ----
+        //  ---- BERABER: P1 P3 gibi, berabere kalmayanin yerini bos birak ----
         4'd9: begin
             bayt = L_ESI[8*(29-s) +: 8];
             if ((sutun == 5'd9)  || (sutun == 5'd10)) bayt = esit[0] ? bayt : " ";
@@ -239,33 +244,35 @@ module uart_reporter(
 
         endcase
 
-        //  Her satirin sonu: CR + LF  (K10 -> \r\n)
+        //  her satirin sonuna cr+lf ekliyorum, boyle terminalde duzgun alt alta duruyor
         if (sutun == 5'd30) bayt = 8'h0D;
         if (sutun == 5'd31) bayt = 8'h0A;
     end
 
     //=======================================================================
-    //  6) Sira makinesi - bayt bayt uart_tx'e ver
+    //  6) sira makinesi - hazirlanan bayti tek tek uart_tx'e yolla
     //
-    //     fz 0 : OTURMA cevrimi bekle, sonra hat bosalinca bayti ver
-    //     fz 1 : gonder pulsu tek cevrim kaldi, indir
-    //     fz 2 : uart_tx isi aldi mi (mesgul yukseldi mi) bekle
-    //     fz 3 : bayt bitti mi (mesgul dustu mu) bekle -> siradaki bayt
+    //     fz 0 : bayt otursun diye bekle, sonra hat bossa (mesgul degilse) yolla
+    //     fz 1 : tx_gonder pulsunu bir cevrim sonra indir
+    //     fz 2 : uart_tx isi gercekten aldi mi bekle (mesgul yukselsin)
+    //     fz 3 : bayt gonderimi bitti mi bekle (mesgul dussun) -> sonraki bayta gec
     //
-    //     Bu dort faz "mesgul daha yukselmeden ikinci kez gonder basmak"
-    //     yarisini tamamen ortadan kaldirir.
+    //     bu 4 asamayi boyle ayirmamin sebebi: mesgul daha yukselmeden
+    //     ikinci kere gonder basip ayni bayti iki kere yollama hatasina
+    //     dusmemek. basimda bunu bulana kadar epey ugrastim.
     //
-    //  NEDEN "OTURMA" SAYACI VAR - ZAMANLAMA
-    //     bayt'i ureten yol uzun: toplam/sure yazmaci -> bin2bcd'nin 13
-    //     kademeli double-dabble zinciri -> 30 sutunluk metin secici -> tx_veri.
-    //     Bu yol 100 MHz'de tek cevrime SIGMAZ (~16 ns). Sigmasi da gerekmiyor:
-    //     bir bayt 9600 baud'da ~104 000 cevrim surdugu icin tx_veri pratikte
-    //     saatte bir degil, on binlerce cevrimde bir yukleniyor.
-    //     adim degistikten sonra burada OTURMA kadar cevrim bekliyoruz; bu
-    //     sure boyunca bayt'in tum girisleri sabit. Basys3_Refleks.xdc icindeki
-    //     set_multicycle_path kisiti Vivado'ya bu gercegi soyluyor.
-    //     Maliyeti: bayt basina 16 cevrim = 160 ns. Bir baytin sure suresi
-    //     104 us oldugu icin fark edilmez.
+    //  "OTURMA" sayaci neden var - zamanlama meselesi
+    //     bayt sinyaline giden yol epey uzun: sure/toplam yazmaclari ->
+    //     bin2bcd'nin 13 kademeli double-dabble zinciri -> 30 sutunluk
+    //     buyuk secici -> tx_veri. bu yol 100 mhz'de tek cevrime sigmiyor
+    //     (~16 ns surdugunu olctum). ama sigmasi da sart degil: bir bayti
+    //     9600 baud'da gondermek zaten ~104.000 cevrim tutuyor, yani
+    //     tx_veri saatte bir degil, on binlerce cevrimde bir degisiyor.
+    //     adim degistikten sonra burada oturma kadar bekletip sinyallerin
+    //     otursun diye pay veriyorum. xdc dosyasindaki set_multicycle_path
+    //     satiri da vivado'ya "bu yolda acele etme, uzun surebilir" diyor.
+    //     maliyeti: bayt basina 16 cevrim = 160 ns kaybediyoruz, ama bir
+    //     baytin gonderimi zaten 104 us surdugu icin hic fark etmiyor.
     //=======================================================================
     localparam [4:0] OTURMA = 5'd16;
 
@@ -292,7 +299,7 @@ module uart_reporter(
             end else if (calisiyor) begin
                 case (fz)
                     2'd0: if (otur != OTURMA) begin
-                              otur <= otur + 5'd1;      // bayt otursun
+                              otur <= otur + 5'd1;      // sinyaller otursun diye bekliyoruz
                           end else if (!tx_mesgul) begin
                               tx_veri   <= bayt;
                               tx_gonder <= 1'b1;
@@ -307,7 +314,7 @@ module uart_reporter(
                                  end else begin
                                      adim <= adim + 9'd1;
                                  end
-                                 otur <= 5'd0;          // yeni bayt, yeniden otur
+                                 otur <= 5'd0;          // yeni bayt basladi, sayaci sifirla
                                  fz   <= 2'd0;
                              end
                 endcase
