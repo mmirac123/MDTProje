@@ -3,8 +3,8 @@
 
 module uart_reporter(
     input  wire        clk, rst,
-    input  wire        basla,            // game_fsm tek cevrimlik puls atiyor
-    input  wire        son_rapor,        // 1 ise kazanan/beraberlik mesaji basiliyor
+    input  wire        basla,            
+    input  wire        son_rapor,        // 1se kazanan veys beraberlik mesaji basiliyor
 
     input  wire [4:0]  tur_no,
     input  wire [12:0] sure0, sure1, sure2, sure3,
@@ -23,9 +23,9 @@ module uart_reporter(
 
     //  adres cozumu
     
-    reg [8:0] adim;      // metinde kacinci bayttayiz (0..319 arasi)
+    reg [8:0] adim;      // metinde kacinci bayttayiz 
     reg       calisiyor;
-    reg [1:0] fz;        // uart_tx ile el sikisma fazi (asagida 6. bolumde anlatiyorum)
+    reg [1:0] fz;       
 
     wire [3:0] blok  = adim[8:5];
     wire [4:0] sutun = adim[4:0];
@@ -33,9 +33,9 @@ module uart_reporter(
     wire [3:0] df    = sutun - 5'd4;                      // durum alani icin yerel indeks
 
   
-    localparam [8:0] SON_TUR_RAPORU = 9'd224;   // 7 satir  x 32 bayt
-    localparam [8:0] SON_OYUN       = 9'd288;   // 9 satir  x 32 bayt
-    localparam [8:0] SON_BERABER    = 9'd320;   // 10 satir x 32 bayt
+    localparam [8:0] SON_TUR_RAPORU = 9'd224;   
+    localparam [8:0] SON_OYUN       = 9'd288;   
+    localparam [8:0] SON_BERABER    = 9'd320;   
 
     wire [8:0] toplam_bayt = son_rapor ? (beraberlik ? SON_BERABER : SON_OYUN)
                                        : SON_TUR_RAPORU;
@@ -140,7 +140,7 @@ module uart_reporter(
                     bayt = S_TIME[8*(10-df) +: 8];
                 else if (o_puan == 3'd0)                          // elenmis puani sifirlanmis
                     bayt = S_ELEN[8*(10-df) +: 8];
-                else begin                                        // her sey normal, NNNN ms yaz
+                else begin                                        // her sey normal NNNN ms yaz
                     case (df)
                         4'd0:    bayt = 8'h30 + bcd_cikis[15:12];
                         4'd1:    bayt = 8'h30 + bcd_cikis[11:8];
