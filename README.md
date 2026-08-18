@@ -86,7 +86,7 @@ turu başlatır. Yani **tur başına tam bir BTNC basışı** düşer. (Daha ön
 araya `S_ARM` diye ikinci bir bekleme durumu koymuştuk, şartnameye uyması
 için kaldırıldı; `durum` kodlarında `3'd1` boş bırakıldı.)
 
-Ek karar: **false start bayrakları** `t0`'da değil, `silahli`'nin yükselen
+Ek karar: **false start bayrakları** `t0`'da değil, `hazirlik`'in yükselen
 kenarında (turun başında) temizlenir. Aksi halde blackout'tan önce yakalanan
 false start'lar `t0` ile silinirdi.
 
@@ -100,7 +100,7 @@ false start'lar `t0` ile silinirdi.
 - Sıralı bloklarda `<=`, kombinasyonel bloklarda `=`.
 - Reset **senkron**: `always @(posedge clk) if (rst)`.
 - Zaman `vurus_1ms` ile sayılır, ham çevrim sayılmaz.
-- Testbench'te `MS_DIV` / `CLKS_PER_BIT` küçültülür.
+- Testbench'te `MS_BOLEN` / `BIT_BASINA_CEVRIM` küçültülür.
 - UART metninde Türkçe karakter kullanılmaz.
 
 Ayrıntılar ve gerekçeler için grup kılavuzuna bakın.

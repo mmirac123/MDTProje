@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 //  uart_tx_tb - Yazan:
-//  CLKS_PER_BIT'i kucult, yoksa tek bayt 104 us surer (10417*10ns*10bit).
+//  BIT_BASINA_CEVRIM'i kucult, yoksa tek bayt 104 us surer (10417*10ns*10bit).
 //  Kontrol: start biti 0 mu, 8 veri biti LSB-once mu, stop biti 1 mi,
 //           mesgul dogru zamanlarda inip cikiyor mu.
 
@@ -18,7 +18,7 @@ module uart_tx_tb;
 
     always #5 clk = ~clk;
 
-    uart_tx #(.CLKS_PER_BIT(CPB_TB)) uut (
+    uart_tx #(.BIT_BASINA_CEVRIM(CPB_TB)) uut (
         .clk(clk), .rst(rst), .gonder(gonder), .veri(veri),
         .tx(tx), .mesgul(mesgul)
     );
@@ -50,7 +50,7 @@ module uart_tx_tb;
     endtask
 
     initial begin
-        $display("--- uart_tx testi (8N1, CLKS_PER_BIT=%0d) ---", CPB_TB);
+        $display("--- uart_tx testi (8N1, BIT_BASINA_CEVRIM=%0d) ---", CPB_TB);
 
         rst = 1'b1;
         repeat (5) @(posedge clk);

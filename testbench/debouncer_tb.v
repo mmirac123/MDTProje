@@ -9,18 +9,18 @@ module debouncer_tb;
     reg  clk = 1'b0;
     reg  rst = 1'b1;
     reg  btn_ham = 1'b0;
-    wire vurus_1ms, btn_seviye, btn_puls;
+    wire vurus_1ms, btn_seviye, btn_vurusu;
 
     always #5 clk = ~clk;
 
     // Nabzi gercek timebase'den al (ayrica entegrasyonu da denemis olursun)
-    timebase #(.MS_DIV(MS_DIV_TB)) tb_saat (
-        .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms), .disp_sel()
+    timebase #(.MS_BOLEN(MS_DIV_TB)) tb_saat (
+        .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms), .hane_sec()
     );
 
-    debouncer #(.STABLE_MS(STABLE_MS_TB)) uut (
+    debouncer #(.KARARLI_MS(STABLE_MS_TB)) uut (
         .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms),
-        .btn_ham(btn_ham), .btn_seviye(btn_seviye), .btn_puls(btn_puls)
+        .btn_ham(btn_ham), .btn_seviye(btn_seviye), .btn_vurusu(btn_vurusu)
     );
 
     //  Zaman cetveli:  1 ms = 10 cevrim = 100 ns  |  esik (5 ms) = 500 ns
@@ -35,7 +35,7 @@ module debouncer_tb;
 
         // 1) ZIPLAYAN BASIS - her parca 30 ns, esikten cok kisa
         //    Beklenen: ziplama filtrelenir, sabitlendikten 500 ns sonra
-        //              btn_seviye 1 olur ve TEK btn_puls cikar.
+        //              btn_seviye 1 olur ve TEK btn_vurusu cikar.
         #30 btn_ham = 1'b1;
         #30 btn_ham = 1'b0;
         #30 btn_ham = 1'b1;
@@ -44,7 +44,7 @@ module debouncer_tb;
         #2000;                   // 20 ms basili tut
 
         // 2) BIRAKMA - Beklenen: btn_seviye 0'a doner ama puls CIKMAZ
-        //    (btn_puls sadece yukselen kenarda uretiliyor)
+        //    (btn_vurusu sadece yukselen kenarda uretiliyor)
         btn_ham = 1'b0;
         #2000;
 

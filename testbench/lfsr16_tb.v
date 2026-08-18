@@ -2,12 +2,12 @@
 //  lfsr16_tb - LFSR + delay_gen birlikte dogrulanir. Yazan:
 //  Kontrol edilecekler:
 //    1) deger HICBIR ZAMAN 0 olmamali (0 olursa LFSR sonsuza kilitlenir)
-//    2) SEED'e donusu tam 65535 cevrim surmeli (maksimum uzunluk)
+//    2) BASLANGIC_DEGERI'e donusu tam 65535 cevrim surmeli (maksimum uzunluk)
 //    3) delay_gen uc degerlerde dogru sureyi vermeli
 
 module lfsr16_tb;
 
-    localparam [15:0] SEED = 16'hACE1;
+    localparam [15:0] BASLANGIC_DEGERI = 16'hACE1;
 
     reg  clk = 1'b0;
     reg  rst = 1'b1;
@@ -21,13 +21,13 @@ module lfsr16_tb;
     wire [12:0] elle_kolay, elle_zor;
 
     integer i;
-    integer donus     = 0;      // SEED'e kacinci cevrimde donduk
+    integer donus     = 0;      // BASLANGIC_DEGERI'e kacinci cevrimde donduk
     integer sifir_gor = 0;      // kac kez 0 gorduk
     integer hata      = 0;
 
     always #5 clk = ~clk;
 
-    lfsr16 #(.SEED(SEED)) uut (.clk(clk), .rst(rst), .deger(deger));
+    lfsr16 #(.BASLANGIC_DEGERI(BASLANGIC_DEGERI)) uut (.clk(clk), .rst(rst), .deger(deger));
 
     delay_gen dg_k  (.lfsr_deger(deger), .zor_mod(1'b0), .bekleme_ms(bekleme_kolay));
     delay_gen dg_z  (.lfsr_deger(deger), .zor_mod(1'b1), .bekleme_ms(bekleme_zor));
@@ -60,14 +60,14 @@ module lfsr16_tb;
             @(posedge clk);
             #1;
             if (deger === 16'd0)               sifir_gor = sifir_gor + 1;
-            if ((deger === SEED) && (donus == 0)) donus = i;
+            if ((deger === BASLANGIC_DEGERI) && (donus == 0)) donus = i;
         end
 
         $display("deger hic 0 oldu mu : %0d kez  %s",
                  sifir_gor, (sifir_gor == 0) ? "GECTI" : "HATA");
         if (sifir_gor != 0) hata = hata + 1;
 
-        $display("SEED'e donus       : %0d cevrim (beklenen 65535)  %s",
+        $display("BASLANGIC_DEGERI'e donus       : %0d cevrim (beklenen 65535)  %s",
                  donus, (donus == 65535) ? "GECTI" : "HATA");
         if (donus != 65535) hata = hata + 1;
 

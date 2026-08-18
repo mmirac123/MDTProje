@@ -4,15 +4,15 @@
 //
 //  Zaman cetveli: MS_DIV_TB=10 -> 1 ms = 100 ns ; 5 sn penceresi = 500 us
 //
-//  TURUN BASI = silahli'nin yukselen kenari. Bayraklar orada temizlenir
+//  TURUN BASI = hazirlik'nin yukselen kenari. Bayraklar orada temizlenir
 //  (t0'da DEGIL - yoksa blackout'tan once yakalanan false start'lar silinir).
 
 module reaction_capture_tb;
     localparam integer MS_DIV_TB = 10;
 
     reg clk = 1'b0, rst = 1'b1;
-    reg t0 = 1'b0, silahli = 1'b0, pencere = 1'b0;
-    reg [3:0] basis = 4'd0;
+    reg t0 = 1'b0, hazirlik = 1'b0, olcum_aktif = 1'b0;
+    reg [3:0] basildi = 4'd0;
     reg [3:0] aktif = 4'b1111;
     wire vurus_1ms;
     wire [12:0] sure0, sure1, sure2, sure3;
@@ -24,14 +24,14 @@ module reaction_capture_tb;
 
     always #5 clk = ~clk;
 
-    timebase #(.MS_DIV(MS_DIV_TB)) tb_saat (
-        .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms), .disp_sel()
+    timebase #(.MS_BOLEN(MS_DIV_TB)) tb_saat (
+        .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms), .hane_sec()
     );
 
     reaction_capture uut (
         .clk(clk), .rst(rst), .vurus_1ms(vurus_1ms),
-        .t0(t0), .silahli(silahli), .pencere(pencere),
-        .basis(basis), .aktif(aktif),
+        .t0(t0), .hazirlik(hazirlik), .olcum_aktif(olcum_aktif),
+        .basildi(basildi), .aktif(aktif),
         .sure0(sure0), .sure1(sure1), .sure2(sure2), .sure3(sure3),
         .gecerli(gecerli), .yanlis_baslangic(yanlis_baslangic),
         .zaman_asimi(zaman_asimi), .tur_hazir(tur_hazir)
@@ -41,22 +41,22 @@ module reaction_capture_tb;
     //  Yardimci gorevler
     //-----------------------------------------------------------------------
 
-    //  Yeni tur: silahli'yi 0'dan 1'e cek (bayraklar temizlenir)
+    //  Yeni tur: hazirlik'yi 0'dan 1'e cek (bayraklar temizlenir)
     task tur_basla;
         begin
-            @(negedge clk); silahli = 1'b0; pencere = 1'b0; t0 = 1'b0;
-            @(negedge clk); silahli = 1'b1;
+            @(negedge clk); hazirlik = 1'b0; olcum_aktif = 1'b0; t0 = 1'b0;
+            @(negedge clk); hazirlik = 1'b1;
             repeat (2) @(negedge clk);
         end
     endtask
 
-    //  Blackout ani: silahli dusuyor, pencere aciliyor, t0 tek cevrimlik puls.
+    //  Blackout ani: hazirlik dusuyor, olcum_aktif aciliyor, t0 tek cevrimlik puls.
     //  Once nabza hizalaniyoruz ki t0 ile vurus_1ms ayni cevrime denk gelip
     //  bir ms'yi yutmasin - olcumler o zaman 1 ms kayardi.
     task blackout;
         begin
             @(posedge vurus_1ms);
-            @(negedge clk); silahli = 1'b0; pencere = 1'b1; t0 = 1'b1;
+            @(negedge clk); hazirlik = 1'b0; olcum_aktif = 1'b1; t0 = 1'b1;
             @(negedge clk); t0 = 1'b0;
         end
     endtask
@@ -71,11 +71,11 @@ module reaction_capture_tb;
         end
     endtask
 
-    //  Tek cevrimlik basis pulsu
+    //  Tek cevrimlik basildi pulsu
     task bas(input [3:0] kim);
         begin
-            @(negedge clk); basis = kim;
-            @(negedge clk); basis = 4'd0;
+            @(negedge clk); basildi = kim;
+            @(negedge clk); basildi = 4'd0;
         end
     endtask
 
@@ -96,9 +96,9 @@ module reaction_capture_tb;
         rst = 1'b0;
 
         //===================================================================
-        //  1) FALSE START : silahli iken P1 basiyor
+        //  1) FALSE START : hazirlik iken P1 basiyor
         //===================================================================
-        $display("1) FALSE START (silahli iken P1 basiyor)");
+        $display("1) FALSE START (hazirlik iken P1 basiyor)");
         aktif = 4'b1111;
         tur_basla;
         bas(4'b0001);

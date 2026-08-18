@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module lfsr16 #(
-    parameter [15:0] SEED = 16'hACE1  //  reset sonrasi baslangic degeri   
+    parameter [15:0] BASLANGIC_DEGERI = 16'hACE1  //  reset sonrasi baslangic degeri   
 )(
     input  wire        clk,
     input  wire        rst,
@@ -14,7 +14,7 @@ module lfsr16 #(
    
     always @(posedge clk) begin
         if (rst)
-            deger <= SEED;
+            deger <= BASLANGIC_DEGERI;
         else
             deger <= {deger[14:0], geri_besleme}; // bir bit sola kaydirilir ve geri besleme degeri eklenir.
     end

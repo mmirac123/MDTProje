@@ -7,7 +7,7 @@
 //  terminalde gor. Calismadan ustune metin uretme.
 
 module uart_tx #(
-    parameter integer CLKS_PER_BIT = 10417   // simulasyonda kucult
+    parameter integer BIT_BASINA_CEVRIM = 10417   // simulasyonda kucult
 )(
     input  wire       clk, rst,
     input  wire       gonder,          // TEK cevrimlik puls
@@ -16,7 +16,7 @@ module uart_tx #(
     output reg        mesgul
 );
 
-    localparam BOS = 2'd0, START = 2'd1, VERI = 2'd2, STOP = 2'd3;
+    localparam BOSTA = 2'd0, BASLANGIC = 2'd1, VERI = 2'd2, BITIS = 2'd3;
 
     reg [1:0]  durum;
     reg [13:0] sayac;
@@ -25,7 +25,7 @@ module uart_tx #(
 
     always @(posedge clk) begin
         if (rst) begin
-            durum    <= BOS;
+            durum    <= BOSTA;
             tx       <= 1'b1;
             mesgul   <= 1'b0;
             sayac    <= 14'd0;
@@ -35,9 +35,9 @@ module uart_tx #(
             case (durum)
 
             //---------------------------------------------------------------
-            //  BOS : hat bosta (1). gonder gelirse start bitini bas.
+            //  BOSTA : hat bosta (1). gonder gelirse start bitini bas.
             //---------------------------------------------------------------
-            BOS: begin
+            BOSTA: begin
                 tx     <= 1'b1;
                 mesgul <= 1'b0;
                 sayac  <= 14'd0;
@@ -46,15 +46,15 @@ module uart_tx #(
                     kaydirma <= veri;
                     tx       <= 1'b0;      // start biti
                     mesgul   <= 1'b1;
-                    durum    <= START;
+                    durum    <= BASLANGIC;
                 end
             end
 
             //---------------------------------------------------------------
-            //  START : bir bit suresi bekle, sonra ilk veri bitini (LSB) koy
+            //  BASLANGIC : bir bit suresi bekle, sonra ilk veri bitini (LSB) koy
             //---------------------------------------------------------------
-            START: begin
-                if (sayac == CLKS_PER_BIT - 1) begin
+            BASLANGIC: begin
+                if (sayac == BIT_BASINA_CEVRIM - 1) begin
                     sayac  <= 14'd0;
                     tx     <= kaydirma[0];
                     bit_no <= 3'd0;
@@ -68,11 +68,11 @@ module uart_tx #(
             //  VERI : 8 bit, LSB once
             //---------------------------------------------------------------
             VERI: begin
-                if (sayac == CLKS_PER_BIT - 1) begin
+                if (sayac == BIT_BASINA_CEVRIM - 1) begin
                     sayac <= 14'd0;
                     if (bit_no == 3'd7) begin
                         tx    <= 1'b1;     // stop biti
-                        durum <= STOP;
+                        durum <= BITIS;
                     end else begin
                         tx     <= kaydirma[bit_no + 3'd1];
                         bit_no <= bit_no + 3'd1;
@@ -83,14 +83,14 @@ module uart_tx #(
             end
 
             //---------------------------------------------------------------
-            //  STOP : bir bit suresi 1 tut, sonra bosa don
+            //  BITIS : bir bit suresi 1 tut, sonra bosa don
             //---------------------------------------------------------------
-            STOP: begin
+            BITIS: begin
                 tx <= 1'b1;
-                if (sayac == CLKS_PER_BIT - 1) begin
+                if (sayac == BIT_BASINA_CEVRIM - 1) begin
                     sayac  <= 14'd0;
                     mesgul <= 1'b0;
-                    durum  <= BOS;
+                    durum  <= BOSTA;
                 end else begin
                     sayac <= sayac + 14'd1;
                 end

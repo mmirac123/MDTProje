@@ -3,7 +3,7 @@
 //  top_tb - SISTEM testbench'i.  Yazan:
 //  Tum oyunu simule eder ve her adimi [ PASS ] / [ FAIL ] olarak raporlar.
 //
-//  MS_DIV ve CLKS_PER_BIT'i MUTLAKA kucult, yoksa tek tur bile dakikalar surer.
+//  MS_BOLEN ve BIT_BASINA_CEVRIM'i MUTLAKA kucult, yoksa tek tur bile dakikalar surer.
 //
 //  SENARYO (2 oyuncu, 2 tur, eleme kapali, zor mod)
 //    Tur 1 : P1 200 ms , P2 350 ms   -> P1 4 puan / P2 3 puan
@@ -28,16 +28,16 @@ module top_tb;
     wire [15:0] led;
     wire [6:0]  seg;
     wire [3:0]  an;
-    wire        dp, RsTx;
+    wire        nokta, RsTx;
 
     integer gecen = 0, kalan = 0;
 
     always #5 clk = ~clk;
 
-    top #(.MS_DIV(MS_DIV_TB), .CLKS_PER_BIT(CPB_TB)) uut (
+    top #(.MS_BOLEN(MS_DIV_TB), .BIT_BASINA_CEVRIM(CPB_TB)) uut (
         .clk(clk), .sw(sw), .btnC(btnC), .btnU(btnU), .btnL(btnL),
         .btnR(btnR), .btnD(btnD),
-        .led(led), .seg(seg), .an(an), .dp(dp), .RsTx(RsTx)
+        .led(led), .seg(seg), .an(an), .nokta(nokta), .RsTx(RsTx)
     );
 
     //=======================================================================
@@ -109,16 +109,16 @@ module top_tb;
     endtask
 
     //=======================================================================
-    //  IZLEYICI 1 : 7-segment animasyonu (basamak_en gecisleri + zamanlari)
+    //  IZLEYICI 1 : 7-segment animasyonu (basamak_acik gecisleri + zamanlari)
     //=======================================================================
     reg  [3:0] anim_deger [0:7];
     integer    anim_zaman [0:7];
     integer    anim_n     = 0;
     reg        anim_kayit = 1'b0;
 
-    always @(uut.u_fsm.basamak_en) begin
+    always @(uut.u_fsm.basamak_acik) begin
         if (anim_kayit && (anim_n < 8)) begin
-            anim_deger[anim_n] = uut.u_fsm.basamak_en;
+            anim_deger[anim_n] = uut.u_fsm.basamak_acik;
             anim_zaman[anim_n] = $time;
             anim_n = anim_n + 1;
         end
@@ -228,15 +228,15 @@ module top_tb;
         sw = 16'b0010_0000_0000_0001;
         #(30 * MS_NS);
 
-        pass_fail("konfigurasyon ekrani acik (basamak_en=1011)",
-                  uut.u_fsm.basamak_en === 4'b1011);
+        pass_fail("konfigurasyon ekrani acik (basamak_acik=1011)",
+                  uut.u_fsm.basamak_acik === 4'b1011);
         pass_fail_d("ekranda oyuncu sayisi (d3)", uut.d3, 2);
         pass_fail_d("ekranda tur sayisi onlar (d1)", uut.d1, 0);
         pass_fail_d("ekranda tur sayisi birler (d0)", uut.d0, 2);
 
         //  BTNC : ayarlari kaydet VE 1. turu baslat.
         //  Proje tanimi §2: "BTNC'ye basildiginda ayarlar kaydedilmeli ve
-        //  oyun baslamalidir" -> tek basis. Animasyon bu basisla basladigi
+        //  oyun baslamalidir" -> tek basildi. Animasyon bu basisla basladigi
         //  icin kaydediciyi basmadan ONCE aciyoruz.
         anim_kayit = 1'b1;
         uart_n     = 0;
@@ -245,19 +245,19 @@ module top_tb;
 
         pass_fail("BTNC sonrasi durum = S_SEQ",  uut.u_fsm.durum === 3'd2);
         pass_fail("oyuncu maskesi 2 oyuncu (0011)",
-                  uut.oyuncu_maske === 4'b0011);
+                  uut.oynayanlar === 4'b0011);
         pass_fail_d("tur sayisi latch'lendi",   uut.u_fsm.tur_sayisi, 2);
         pass_fail("eleme modu kapali",          uut.eleme_modu === 1'b0);
         pass_fail("zor mod acik",               uut.zor_mod    === 1'b1);
-        pass_fail("TEK basisla tur basladi (silahli=1)",
-                  uut.silahli === 1'b1);
+        pass_fail("TEK basisla tur basladi (hazirlik=1)",
+                  uut.hazirlik === 1'b1);
         pass_fail_d("1. tur numarasi",          uut.u_fsm.tur_no, 1);
 
         //===================================================================
         baslik("3) TUR 1 - ANIMASYON VE BLACKOUT");
         //===================================================================
 
-        @(posedge uut.u_fsm.pencere);            // blackout ani
+        @(posedge uut.u_fsm.olcum_aktif);            // blackout ani
         //  DIKKAT: @(posedge ...) tam sinyalin degistigi delta aninda doner.
         //  t0 sayaci bir sonraki saat kenarinda sayiyor, "an" ise kombinasyonel
         //  olarak henuz oturmamis oluyor. Olcmeden once birkac cevrim bekle.
@@ -269,11 +269,11 @@ module top_tb;
         bekleme_olculen = (anim_zaman[4] - anim_zaman[3]) / MS_NS - 400;
 
         pass_fail_d("animasyon 5 gecis kaydetti", anim_n, 5);
-        pass_fail("adim 1 : basamak_en = 0001", anim_deger[0] === 4'b0001);
-        pass_fail("adim 2 : basamak_en = 0011", anim_deger[1] === 4'b0011);
-        pass_fail("adim 3 : basamak_en = 0111", anim_deger[2] === 4'b0111);
-        pass_fail("adim 4 : basamak_en = 1111", anim_deger[3] === 4'b1111);
-        pass_fail("blackout : basamak_en = 0000", anim_deger[4] === 4'b0000);
+        pass_fail("adim 1 : basamak_acik = 0001", anim_deger[0] === 4'b0001);
+        pass_fail("adim 2 : basamak_acik = 0011", anim_deger[1] === 4'b0011);
+        pass_fail("adim 3 : basamak_acik = 0111", anim_deger[2] === 4'b0111);
+        pass_fail("adim 4 : basamak_acik = 1111", anim_deger[3] === 4'b1111);
+        pass_fail("blackout : basamak_acik = 0000", anim_deger[4] === 4'b0000);
 
         pass_fail_yaklasik("adim 1->2 suresi (ms)",
                   (anim_zaman[1]-anim_zaman[0])/MS_NS, 400, 1);
@@ -353,11 +353,11 @@ module top_tb;
         btnU = 1'b0;
         #(5  * MS_NS);
 
-        pass_fail("false start aninda silahli = 1", uut.silahli === 1'b1);
+        pass_fail("false start aninda hazirlik = 1", uut.hazirlik === 1'b1);
         pass_fail("P1 false start yakalandi",
                   uut.yanlis_baslangic === 4'b0001);
 
-        @(posedge uut.u_fsm.pencere);            // blackout ani
+        @(posedge uut.u_fsm.olcum_aktif);            // blackout ani
         repeat (3) @(posedge clk);
         #1;
         pass_fail("blackout'tan sonra false start bayragi SILINMEDI",

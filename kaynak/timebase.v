@@ -3,24 +3,26 @@
 
 module timebase #(
 
-    parameter integer MS_DIV = 100_000
+    parameter integer MS_BOLEN = 100_000 //1ms icin
 )(
-    input  wire       clk,        // W5, 100 MHz
-    input  wire       rst,        // SW15, seviye, senkron kullanilacak
-    output reg        vurus_1ms,   // TAM 1 cevrim genisliginde nabiz
-    output wire [1:0] disp_sel    // 0->1->2->3->0 , serbest kosar
+    input  wire       clk,        
+    input  wire       rst,        
+    output reg        vurus_1ms,   
+    output wire [1:0] hane_sec    
 );
+
+//modulun amaci 1ms'te bir izin uretmek yeni bir saat uretmiyor. yeni saat uretmek demek mantikla yeni saat uretmek demek ve bu da gecikme vs. yapar
 
 
     reg [16:0] ms_sayac;        // 1 ms sayaci
-    reg [17:0] scan_sayac = 0;      // 7-segment tarama sayaci (serbest kosar)
+    reg [17:0] tarama_sayac = 0;      
 
-
+    //senkron reset
     always @(posedge clk) begin
         if(rst) begin
             ms_sayac <= 0;
             vurus_1ms <= 0;
-        end else if(ms_sayac == MS_DIV -1) begin
+        end else if(ms_sayac == MS_BOLEN -1) begin // burda 1ms'ten tam 1 onceki cevrim islem yapiliyor sonraki cevrim 1ms olsun diye.
             ms_sayac <= 0;
             vurus_1ms <= 1;
         end else begin
@@ -30,12 +32,12 @@ module timebase #(
 
     end
 
-
+    //bu hep artsin.
     always @(posedge clk) begin
-        scan_sayac <= scan_sayac + 1;
+        tarama_sayac <= tarama_sayac + 1;
     end
 
-
-    assign disp_sel = scan_sayac[17:16];
+    //???
+    assign hane_sec = tarama_sayac[17:16];
 
 endmodule

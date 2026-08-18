@@ -73,8 +73,8 @@ set_property PACKAGE_PIN U7 [get_ports {seg[6]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {seg[*]}]
 
 ## Ondalik nokta (kullanmiyorsaniz top'ta 1'b1'e baglayin, yoksa surekli yanar)
-set_property PACKAGE_PIN V7 [get_ports dp]
-    set_property IOSTANDARD LVCMOS33 [get_ports dp]
+set_property PACKAGE_PIN V7 [get_ports nokta]
+    set_property IOSTANDARD LVCMOS33 [get_ports nokta]
 
 ## ---- 7-Segment : anot (basamak secme) hatlari, AKTIF-DUSUK ------------------
 set_property PACKAGE_PIN U2 [get_ports {an[0]}]
